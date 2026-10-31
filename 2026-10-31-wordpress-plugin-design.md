@@ -92,11 +92,18 @@ https://developer.wordpress.org/plugins/hooks/
 
 ### 2. Settings
 
-One option, the base URL, defaulting to `https://games.chatforest.com`, so Rob can point a
-test site at gamet. A page under Settings with the Settings API: `register_setting()` (with a
-`sanitize_callback` that keeps `https://` URLs only, `esc_url_raw()`), `add_settings_section()`,
-`add_settings_field()`, `add_options_page()`, and `current_user_can( 'manage_options' )`.
-Read: https://developer.wordpress.org/plugins/settings/
+One option, `chalandria_one_base`, the base URL, defaulting to `https://games.chatforest.com`,
+so Rob can point a test site at gamet. A page under Settings with the Settings API:
+`register_setting()` (with a `sanitize_callback` that keeps `https://` URLs only,
+`esc_url_raw()`), `add_settings_section()`, `add_settings_field()`, `add_options_page()`, and
+`current_user_can( 'manage_options' )`.
+
+A key belongs to the base that issued it: a gamet key is a 401 on games. So when the base
+changes, forget every stored key and handle (`add_action( 'update_option_chalandria_one_base', … )`
+calling the same `delete_metadata()` as uninstall, step 9). Players reconnect against the new
+base. The old keys stay live on the old base until revoked there on /profile/.
+Read: https://developer.wordpress.org/plugins/settings/ and
+https://developer.wordpress.org/reference/hooks/update_option_option/
 
 ### 3. The client (`client.php`)
 
@@ -105,8 +112,9 @@ Small functions around the HTTP API, used by steps 4, 5 and 7:
 - `chalandria_one_redeem( $code, $host )` → `wp_remote_post()` to `do=redeem`.
 - `chalandria_one_forward( $key, $method, $do, $params )` → `wp_remote_request()` to
   `chalandria/api.php`, with headers `X-Games-Key` and a `User-Agent` of
-  `WordPress/{version}; {home_url}; chalandria-one-wp/{plugin version}`. `timeout` **60**: a turn can
-  take 30 s and the default is 5.
+  `WordPress/{version}; {home_url}; chalandria-one-wp/{plugin version}`. `timeout` **60**: a
+  turn can take 30 s and the default is 5. GET parameters go on the URL with `add_query_arg()`,
+  which does **not** encode values: `rawurlencode()` each one first.
 - `chalandria_one_disconnect( $key )`.
 
 Use `wp_remote_retrieve_response_code()` and `wp_remote_retrieve_body()`, check
@@ -115,9 +123,17 @@ Read: https://developer.wordpress.org/plugins/http-api/
 
 ### 4. Where the key lives
 
-User meta, `chalandria_one_key`, one per WordPress user: `get_user_meta( $user_id, 'chalandria_one_key',
-true )`, `update_user_meta()`, `delete_user_meta()`. Optionally keep the redeem answer's
-`username` in `chalandria_one_handle`, to show "Playing as @rob".
+User meta, `chalandria_one_key`, one per WordPress user:
+`get_user_meta( $user_id, 'chalandria_one_key', true )`, `update_user_meta()`,
+`delete_user_meta()`. Optionally keep the redeem answer's `username` in
+`chalandria_one_handle`, to show "Playing as @rob".
+
+Don't `register_meta()` these keys. Registering with `show_in_rest` is the one way user meta
+leaks out through the core REST API (`/wp/v2/users/me`); unregistered meta never does.
+
+Optional: `add_action( 'delete_user', … )` calling `chalandria_one_disconnect()` with that
+user's key, so deleting a WP user also revokes their key on our side. WordPress deletes the
+meta by itself.
 Read: https://developer.wordpress.org/plugins/users/working-with-user-metadata/
 
 ### 5. The shortcode (`shortcode.php`)
@@ -137,7 +153,15 @@ Read: https://developer.wordpress.org/plugins/users/working-with-user-metadata/
 
 Escape everything that goes out: `esc_url()`, `esc_attr()`, `esc_html()`. Build the boot
 JSON with `wp_json_encode()` using the `JSON_HEX_TAG | JSON_HEX_AMP` flags, so nothing in it
-can close the `<script>`.
+can close the `<script>`. Its `api` is `rest_url( 'chalandria-one/v1/chalandria' )`, which
+gives the right shape for pretty and plain permalinks alike.
+
+`the_content` can run more than once per request (SEO plugins building a description,
+excerpts, page builders), so the callback must do nothing but build its string and enqueue.
+No HTTP calls, no writes.
+
+User-facing strings go through `__()` / `esc_html__()` with the text domain
+`chalandria-one`. No translations ship in v0.1, but the phpcs ruleset flags bare strings.
 Read: https://developer.wordpress.org/plugins/shortcodes/ and
 https://developer.wordpress.org/apis/security/escaping/
 
@@ -156,16 +180,31 @@ https://developer.wordpress.org/reference/functions/wp_enqueue_style/
 Classic WordPress form handling through `admin-post.php`, which teaches nonces:
 
 - The form posts to `admin_url( 'admin-post.php' )` with a hidden `action` of
-  `chalandria_one_connect` (or `chalandria_one_disconnect`), `wp_nonce_field( 'chalandria_one_connect' )`, and
-  a hidden `back` of the current page's URL.
-- `add_action( 'admin_post_chalandria_one_connect', … )` (only logged-in users reach `admin_post_*`).
-  The handler: `check_admin_referer( 'chalandria_one_connect' )`; read the code with
-  `sanitize_text_field( wp_unslash( $_POST['code'] ) )` (WordPress adds slashes to `$_POST`);
-  call `chalandria_one_redeem()`; on 200 store the key; then `wp_safe_redirect( $back )` and `exit`.
+  `chalandria_one_connect` (or `chalandria_one_disconnect`),
+  `wp_nonce_field( 'chalandria_one_connect' )`, and a hidden `back` of the current page's URL
+  with any earlier result stripped: `remove_query_arg( 'chalandria_one', … )`, or the args
+  pile up each time the form is used.
+- `add_action( 'admin_post_chalandria_one_connect', … )` (only logged-in users reach
+  `admin_post_*`). The handler: `check_admin_referer( 'chalandria_one_connect' )`; read the code
+  with `isset( $_POST['code'] )` first, then `sanitize_text_field( wp_unslash( $_POST['code'] ) )`
+  (WordPress adds slashes to `$_POST`); call `chalandria_one_redeem()`; on 200 store the key;
+  then `wp_safe_redirect( $back )` and `exit`. `wp_safe_redirect()` refuses other hosts, so a
+  forged `back` can't send the player off-site.
+- If the user somehow already has a key (a second tab, a double submit), call
+  `chalandria_one_disconnect()` on the old one before storing the new one, so it isn't left
+  live on our side with nothing holding it.
 - Say what happened on the page after the redirect: a query arg added with
-  `add_query_arg( 'chalandria_one', 'connected' | 'bad_code' | 'try_later', $back )`, read by the
-  shortcode. A 400 means "That code didn't work. Codes last 10 minutes and work once.";
-  429 means "Too many wrong codes. Wait 15 minutes."
+  `add_query_arg( 'chalandria_one', $result, $back )`, read by the shortcode:
+
+  | Redeem answer | `$result` | Shown |
+  |---|---|---|
+  | 200 | `connected` | "Connected as @handle." |
+  | 400 | `bad_code` | "That code didn't work. Codes last 10 minutes and work once." |
+  | 429 | `try_later` | "Too many wrong codes. Wait 15 minutes." |
+  | anything else, or a `WP_Error` | `unreachable` | "games.chatforest.com didn't answer. Try again in a minute." |
+
+  The 429 is currently counted per WordPress *server*, not per player, so one player's wrong
+  codes can lock out the whole site (mg #800, our side).
 - Disconnect: call `chalandria_one_disconnect()` (ignore its answer), then delete the meta.
 
 Read: https://developer.wordpress.org/apis/security/nonces/ and
@@ -178,33 +217,53 @@ add_action( 'rest_api_init', … register_rest_route( 'chalandria-one/v1', '/cha
     'methods'             => [ 'GET', 'POST' ],
     'callback'            => 'chalandria_one_proxy',
     'permission_callback' => 'is_user_logged_in',
+    'args'                => [
+        'do' => [ 'required' => true, 'enum' => [ 'view', 'cmd', 'describe' ] ],
+    ],
 ] ) );
 ```
 
 - **The nonce is what makes the user logged in here.** A REST request with the WP cookie but
-  no valid `X-WP-Nonce` runs as user 0, so `is_user_logged_in()` is false and the route is
-  401. That is WordPress's CSRF defence for REST, and why `ui.js` sends `boot.headers` on
-  every call.
-- `do` must be one of `view`, `cmd`, `describe` (else 400). Forward only the parameters that
-  `do` uses: `after` for view; `line`, `after` for cmd; `x`, `y`, `z` for describe. Read them
-  with `$request->get_param()`. Don't pass the whole request on.
+  **no** `X-WP-Nonce` runs as user 0, so `is_user_logged_in()` is false and the route is 401.
+  That is WordPress's CSRF defence for REST, and why `ui.js` sends `boot.headers` on every
+  call.
+- **An expired or wrong nonce is a 403, not a 401**, and WordPress sends it before your
+  callback runs: `{"code":"rest_cookie_invalid_nonce",…}`. A `wp_rest` nonce lasts 12–24
+  hours, and logging out of WordPress in another tab kills it too. `ui.js` stops on any 403
+  with "You can no longer play here.", which reads like a ban. Turn it into a 401 on your
+  route, so `ui.js` says "You have been logged out. Log in again to play." (a reload mints a
+  fresh nonce). Use the `rest_post_dispatch` filter, which still runs after a failed
+  authentication: if `$request->get_route()` starts with `/chalandria-one/v1/`, the status is
+  403 and the error code is `rest_cookie_invalid_nonce`, return
+  `new WP_REST_Response( [ 'error' => 'nonce' ], 401 )`.
+- The `args` `enum` makes WordPress answer 400 itself for any other `do`. Forward only the
+  parameters that `do` uses: `after` for view; `line`, `after` for cmd; `x`, `y`, `z` for
+  describe. Read them with `$request->get_param()`. Don't pass the whole request on.
 - No key in meta: answer 401 `{"error":"key"}` without calling us.
 - Our answer goes back with **our status code** and our JSON:
   `new WP_REST_Response( json_decode( $body, true ), $status )`. `ui.js` reads 401, 403 and
   503 itself.
+- If our body doesn't decode (`json_decode()` gives `null`: an HTML error page from the host,
+  a 504 from a proxy), answer 502 `{"error":"unreachable"}` instead of passing on a `null`.
 - Our 401 `{"error":"key"}` means the key was revoked (the player disconnected on
   /profile/, changed password, or was banned): delete the meta too, so the next page load
-  shows the Login button again.
+  shows the Login button again. Only *our* 401 does this, never WordPress's own.
 - A `WP_Error` from the HTTP call (we're down, a timeout): 502 `{"error":"unreachable"}`.
 
-Read: https://developer.wordpress.org/rest-api/extending-the-rest-api/adding-custom-endpoints/
-and https://developer.wordpress.org/rest-api/using-the-rest-api/authentication/
+**Cost.** `ui.js` polls `view` every 2.5 s (15 s in a hidden tab), and each poll here loads
+all of WordPress and then makes an HTTPS call to us. Fine for a few players. On shared
+hosting with many, it's the first thing to get slow. Not a v0.1 problem, but watch it.
+
+Read: https://developer.wordpress.org/rest-api/extending-the-rest-api/adding-custom-endpoints/,
+https://developer.wordpress.org/rest-api/using-the-rest-api/authentication/ and
+https://developer.wordpress.org/reference/hooks/rest_post_dispatch/
 
 ### 9. Uninstall
 
 `uninstall.php` (guarded by `defined( 'WP_UNINSTALL_PLUGIN' )`) deletes the option and every
-user's `chalandria_one_key` and `chalandria_one_handle` (`delete_metadata( 'user', 0, 'chalandria_one_key', '',
-true )`). It can't revoke the keys here, since it doesn't call us. Players can do that on
+user's `chalandria_one_key` and `chalandria_one_handle`
+(`delete_metadata( 'user', 0, 'chalandria_one_key', '', true )`). It can't revoke the
+keys here, since it doesn't call us. Players can do that on
 /profile/, so say so in the readme.
 Read: https://developer.wordpress.org/plugins/plugin-basics/uninstall-methods/
 
@@ -219,11 +278,14 @@ Each step can be seen working before the next:
    Allow page names your WP host, and its `/profile/` then lists the site with your
    User-Agent.
 5. The proxy: in the browser's devtools on the shortcode page,
-   `fetch(boot.api + '?do=view&after=-1', {headers: boot.headers}).then(r => r.json())`.
+   `boot = JSON.parse(document.getElementById('boot').textContent)`, then
+   `fetch(boot.api + (boot.api.includes('?') ? '&' : '?') + 'do=view&after=-1', {headers: boot.headers}).then(r => r.json())`.
+   The same call with `headers: {'X-WP-Nonce': 'nope'}` must come back 401, not 403.
 6. The markup, the module and the CSS: play.
 7. Disconnect, both ways: the button here, and Disconnect on gamet's /profile/ (the next
    poll gets 401 and the page says so; a reload shows the Login button).
-8. Uninstall.
+8. Change the base URL in Settings: the page shows the Login button again.
+9. Uninstall.
 
 A local WordPress to build on: `npx @wordpress/env start` (Docker), or LocalWP. A site on
 `localhost` connects fine: our side accepts `localhost` as a site name.
@@ -231,7 +293,7 @@ A local WordPress to build on: `npx @wordpress/env start` (Docker), or LocalWP. 
 ## Security checklist
 
 - The key is only ever in user meta and in server-to-server headers. Not in HTML, JS, logs,
-  or the REST response.
+  or the REST response. Its meta is never registered with `show_in_rest`.
 - Every form has a nonce, every REST call is nonce-checked by WordPress itself, and the route's
   `permission_callback` is never `__return_true`.
 - Everything echoed is escaped; the boot JSON can't break out of its `<script>`.
@@ -243,4 +305,5 @@ A local WordPress to build on: `npx @wordpress/env start` (Docker), or LocalWP. 
 
 Changes to Chalandria's page (`ui.js`) bump `\Version\Chalandria::SEMVER`, and the plugin's
 constant should follow. Done so far for the plugin (b86ad40): `boot.headers`, the `&` join,
-and the CORS header on Chalandria's `.js`.
+and the CORS header on Chalandria's `.js`. Open: mg #800, the redeem throttle counts per
+WordPress server instead of per player.
