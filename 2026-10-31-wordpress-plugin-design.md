@@ -1,4 +1,4 @@
-# WordPress plugin: `[games_cf_chalandria]`
+# WordPress plugin: `[chalandria_one]`
 
 Date: 2026-10-31. Rob builds it by hand, to learn WordPress. mg #794 (our side: #795-#799,
 spec `2026-10-31-connected-sites-design.md`). This spec says **what** to build and which
@@ -6,12 +6,12 @@ WordPress pieces do it, with links; the code is Rob's.
 
 ## Goal
 
-On any WordPress page, `[games_cf_chalandria]` shows a working Chalandria, played as the
+On any WordPress page, `[chalandria_one]` shows a working Chalandria, played as the
 visitor's own games.chatforest.com account. No iframe: the page carries Chalandria's markup,
 our `ui.js` runs in it, and every call goes through the WordPress site's own server.
 
 ```
-browser ──(WP login cookie + X-WP-Nonce)──▶ /wp-json/games-cf/v1/chalandria?do=…
+browser ──(WP login cookie + X-WP-Nonce)──▶ /wp-json/chalandria-one/v1/chalandria?do=…
 WP plugin ──(X-Games-Key, server to server)──▶ games.chatforest.com/chalandria/api.php?do=…
 ```
 
@@ -51,7 +51,7 @@ markup uses fixed ids), playing without a WordPress login, admin screens listing
 ```
 
 It sends `headers` with **every** call, and adds `?do=…` to `api`, or `&do=…` when `api`
-already has a `?` (plain permalinks give `/?rest_route=/games-cf/v1/chalandria`). GETs put
+already has a `?` (plain permalinks give `/?rest_route=/chalandria-one/v1/chalandria`). GETs put
 their parameters in the query; POSTs send `application/x-www-form-urlencoded` bodies.
 
 It finds these elements by id, so the markup must have them: `scrollback` (an `<ol>`),
@@ -61,15 +61,15 @@ from `templates/chalandria/index.tpl.php` in this repo.
 
 Don't load our `style.css`: it is built on our site's theme tokens and sets the `body`
 background, which would fight the WP theme. Ship a small stylesheet of your own, scoped
-under one wrapper class (say `.games-cf-chalandria`).
+under one wrapper class (say `.chalandria-one`).
 
 ## The plugin
 
 Suggested layout (a folder in `wp-content/plugins/`, its own git repo):
 
 ```
-games-cf/
-  games-cf.php        plugin header, constants, require the rest, add the hooks
+chalandria-one/
+  chalandria-one.php      plugin header, constants, require the rest, add the hooks
   includes/settings.php
   includes/client.php     every call to games.chatforest.com
   includes/shortcode.php
@@ -79,12 +79,12 @@ games-cf/
   uninstall.php
 ```
 
-Prefix every function, option, meta key, hook and handle with `games_cf_` (WordPress has
+Prefix every function, option, meta key, hook and handle with `chalandria_one_` (WordPress has
 one global namespace), or use a PHP namespace for the functions.
 
 ### 1. Plugin header
 
-A comment block at the top of `games-cf.php` makes it a plugin. Set `Requires at least: 6.5`
+A comment block at the top of `chalandria-one.php` makes it a plugin. Set `Requires at least: 6.5`
 (for script modules, step 6) and `Requires PHP`. Guard the file with
 `defined( 'ABSPATH' ) || exit;`.
 Read: https://developer.wordpress.org/plugins/plugin-basics/header-requirements/ and
@@ -102,12 +102,12 @@ Read: https://developer.wordpress.org/plugins/settings/
 
 Small functions around the HTTP API, used by steps 4, 5 and 7:
 
-- `games_cf_redeem( $code, $host )` → `wp_remote_post()` to `do=redeem`.
-- `games_cf_forward( $key, $method, $do, $params )` → `wp_remote_request()` to
+- `chalandria_one_redeem( $code, $host )` → `wp_remote_post()` to `do=redeem`.
+- `chalandria_one_forward( $key, $method, $do, $params )` → `wp_remote_request()` to
   `chalandria/api.php`, with headers `X-Games-Key` and a `User-Agent` of
-  `WordPress/{version}; {home_url}; games-cf-wp/{plugin version}`. `timeout` **60**: a turn can
+  `WordPress/{version}; {home_url}; chalandria-one-wp/{plugin version}`. `timeout` **60**: a turn can
   take 30 s and the default is 5.
-- `games_cf_disconnect( $key )`.
+- `chalandria_one_disconnect( $key )`.
 
 Use `wp_remote_retrieve_response_code()` and `wp_remote_retrieve_body()`, check
 `is_wp_error()`, and **never** set `sslverify` to false. Never log or echo a key.
@@ -115,14 +115,14 @@ Read: https://developer.wordpress.org/plugins/http-api/
 
 ### 4. Where the key lives
 
-User meta, `games_cf_key`, one per WordPress user: `get_user_meta( $user_id, 'games_cf_key',
+User meta, `chalandria_one_key`, one per WordPress user: `get_user_meta( $user_id, 'chalandria_one_key',
 true )`, `update_user_meta()`, `delete_user_meta()`. Optionally keep the redeem answer's
-`username` in `games_cf_handle`, to show "Playing as @rob".
+`username` in `chalandria_one_handle`, to show "Playing as @rob".
 Read: https://developer.wordpress.org/plugins/users/working-with-user-metadata/
 
 ### 5. The shortcode (`shortcode.php`)
 
-`add_shortcode( 'games_cf_chalandria', 'games_cf_render_chalandria' )`. The callback
+`add_shortcode( 'chalandria_one', 'chalandria_one_render' )`. The callback
 **returns** a string (echoing puts it at the top of the page). Three states:
 
 1. **Not logged in to WordPress** (`is_user_logged_in()`): a sentence with two links,
@@ -144,7 +144,7 @@ https://developer.wordpress.org/apis/security/escaping/
 ### 6. Loading our module
 
 `ui.js` is an ES module, so it needs `<script type="module">`. WordPress 6.5+ has the Script
-Modules API: `wp_register_script_module( 'games-cf-chalandria', "{base}/chalandria/0.26.0/ui.js" )`
+Modules API: `wp_register_script_module( 'chalandria-one', "{base}/chalandria/0.26.0/ui.js" )`
 and `wp_enqueue_script_module()` from inside the shortcode callback. Its own `import './state.js'`
 resolves against our URL by itself. The stylesheet: `wp_enqueue_style()` with
 `plugins_url( 'assets/chalandria.css', __FILE__ )` and the plugin's version as `ver`.
@@ -156,17 +156,17 @@ https://developer.wordpress.org/reference/functions/wp_enqueue_style/
 Classic WordPress form handling through `admin-post.php`, which teaches nonces:
 
 - The form posts to `admin_url( 'admin-post.php' )` with a hidden `action` of
-  `games_cf_connect` (or `games_cf_disconnect`), `wp_nonce_field( 'games_cf_connect' )`, and
+  `chalandria_one_connect` (or `chalandria_one_disconnect`), `wp_nonce_field( 'chalandria_one_connect' )`, and
   a hidden `back` of the current page's URL.
-- `add_action( 'admin_post_games_cf_connect', … )` (only logged-in users reach `admin_post_*`).
-  The handler: `check_admin_referer( 'games_cf_connect' )`; read the code with
+- `add_action( 'admin_post_chalandria_one_connect', … )` (only logged-in users reach `admin_post_*`).
+  The handler: `check_admin_referer( 'chalandria_one_connect' )`; read the code with
   `sanitize_text_field( wp_unslash( $_POST['code'] ) )` (WordPress adds slashes to `$_POST`);
-  call `games_cf_redeem()`; on 200 store the key; then `wp_safe_redirect( $back )` and `exit`.
+  call `chalandria_one_redeem()`; on 200 store the key; then `wp_safe_redirect( $back )` and `exit`.
 - Say what happened on the page after the redirect: a query arg added with
-  `add_query_arg( 'games_cf', 'connected' | 'bad_code' | 'try_later', $back )`, read by the
+  `add_query_arg( 'chalandria_one', 'connected' | 'bad_code' | 'try_later', $back )`, read by the
   shortcode. A 400 means "That code didn't work. Codes last 10 minutes and work once.";
   429 means "Too many wrong codes. Wait 15 minutes."
-- Disconnect: call `games_cf_disconnect()` (ignore its answer), then delete the meta.
+- Disconnect: call `chalandria_one_disconnect()` (ignore its answer), then delete the meta.
 
 Read: https://developer.wordpress.org/apis/security/nonces/ and
 https://developer.wordpress.org/reference/hooks/admin_post_action/
@@ -174,9 +174,9 @@ https://developer.wordpress.org/reference/hooks/admin_post_action/
 ### 8. The proxy route (`rest.php`)
 
 ```
-add_action( 'rest_api_init', … register_rest_route( 'games-cf/v1', '/chalandria', [
+add_action( 'rest_api_init', … register_rest_route( 'chalandria-one/v1', '/chalandria', [
     'methods'             => [ 'GET', 'POST' ],
-    'callback'            => 'games_cf_proxy',
+    'callback'            => 'chalandria_one_proxy',
     'permission_callback' => 'is_user_logged_in',
 ] ) );
 ```
@@ -203,7 +203,7 @@ and https://developer.wordpress.org/rest-api/using-the-rest-api/authentication/
 ### 9. Uninstall
 
 `uninstall.php` (guarded by `defined( 'WP_UNINSTALL_PLUGIN' )`) deletes the option and every
-user's `games_cf_key` and `games_cf_handle` (`delete_metadata( 'user', 0, 'games_cf_key', '',
+user's `chalandria_one_key` and `chalandria_one_handle` (`delete_metadata( 'user', 0, 'chalandria_one_key', '',
 true )`). It can't revoke the keys here, since it doesn't call us. Players can do that on
 /profile/, so say so in the readme.
 Read: https://developer.wordpress.org/plugins/plugin-basics/uninstall-methods/
