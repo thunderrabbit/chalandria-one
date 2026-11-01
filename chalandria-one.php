@@ -46,6 +46,7 @@ function chalandria_one_register_settings()
 		'chalandria_one_base',
 		array(
 			'type' => 'string',
+			// 'default' => 'https://games.chatforest.com',
 			'sanitize_callback' => 'sanitize_text_field',
 		)
 	);
@@ -59,12 +60,13 @@ function chalandria_one_setting_section_callback_function()
 function chalandria_one_setting_callback_function() {
 	$value = get_option(
 		'chalandria_one_base',
-		'https://games.chatforest.com'
+		// 'https://games.chatforest.com'
 	);
 
 	echo '<input type="url"
 		id="chalandria_one_base"
 		name="chalandria_one_base"
+		placeholder="https://games.chatforest.com"
 		value="' . esc_attr($value) . '"
 		class="regular-text">';
 }
