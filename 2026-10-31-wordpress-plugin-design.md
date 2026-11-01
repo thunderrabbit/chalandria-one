@@ -82,7 +82,7 @@ chalandria-one/
 Prefix every function, option, meta key, hook and handle with `chalandria_one_` (WordPress has
 one global namespace), or use a PHP namespace for the functions.
 
-### 1. Plugin header
+### 1. [o] Plugin header
 
 A comment block at the top of `chalandria-one.php` makes it a plugin. Set `Requires at least: 6.5`
 (for script modules, step 6) and `Requires PHP`. Guard the file with
