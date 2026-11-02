@@ -7,7 +7,7 @@
  * Author URI:      https://www.robnugen.com/
  * Text Domain:     chalandria-one
  * Domain Path:     /languages
- * Version:         0.2.3
+ * Version:         0.2.4
  *
  * @package         Chalandria_One
  */
@@ -136,10 +136,11 @@ add_action('admin_init', 'chalandria_one_register_settings');
 
 function chalandria_one_render() {
 	$logged_in = is_user_logged_in();
+	$wp_host = wp_parse_url(home_url(),PHP_URL_HOST);
 
 	$intro = "<hr>";
 	$content = "<p>yo go get yo code</p>";
-	$gcf_url = get_option('chalandria_one_base');
+	$gcf_url = get_option('chalandria_one_base')."/connect/?site=".$wp_host."&game=chalandria";
 	$content .= "<a href='".$gcf_url."'>".$gcf_url."</a>";
 	$outro = "<hr>";
 	if($logged_in) {
