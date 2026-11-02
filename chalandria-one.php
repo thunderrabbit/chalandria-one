@@ -52,8 +52,33 @@ function chalandria_one_register_settings()
 		array(
 			'type' => 'string',
 			'default' => CHALANDRIA_ONE_DEFAULT_BASE_URL,
-			'sanitize_callback' => 'sanitize_text_field',
+			'sanitize_callback' => 'chatforest_games_sanitize_url_text_field',
 		)
+	);
+
+}
+
+/**
+ * Check URL saved at Settings -> Chatforest Games -> Chalandria
+ */
+function chatforest_games_sanitize_url_text_field($url_raw)
+{
+	# Get the default
+
+	$url = sanitize_url($url_raw, ['https']);
+
+	if (!empty($url)) {
+		return $url;
+	}
+
+	add_settings_error(
+		'chalandria_one_base',
+		'invalid_base_url',
+		"Y'all got any more of that SSL?"
+	);
+
+	return sanitize_url(
+		CHALANDRIA_ONE_DEFAULT_BASE_URL
 	);
 
 }
