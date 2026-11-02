@@ -139,9 +139,9 @@ function chalandria_one_render() {
 	$wp_host = wp_parse_url(home_url(),PHP_URL_HOST);
 
 	$intro = "<hr>";
-	$content = "<p>yo go get yo code</p>";
 	$gcf_url = get_option('chalandria_one_base')."/connect/?site=".$wp_host."&game=chalandria";
-	$content .= "<a href='".$gcf_url."'>".$gcf_url."</a>";
+	$link_content = "<a rel='noopener' href='".$gcf_url."'>Click here</a>";
+	$content = "<p>".$link_content." to go get yo code.</p>";
 	$outro = "<hr>";
 	if($logged_in) {
 		return

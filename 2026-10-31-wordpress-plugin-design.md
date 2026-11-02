@@ -117,7 +117,7 @@ Build the visible connection screen before making HTTP calls or storing credenti
   show which base URL the plugin will talk to.
 - **D. [o] Link to Chatforest login.** For a logged-in WordPress user, show a **Login to
   Chalandria** link to `{base}/connect/?site={host}&game=chalandria`.
-- **E. opening a new tab**
+- **E. [0] opening a new tab**
   (`target="_blank" rel="noopener"`). The player logs in there, allows the connection,
   and receives a short-lived code.
 - **F. Show a code field.** Below the link, show "Paste the code here", a text input and a
