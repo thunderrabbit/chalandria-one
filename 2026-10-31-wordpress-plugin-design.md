@@ -128,7 +128,7 @@ Build the visible connection screen before making HTTP calls or storing credenti
 excerpts, page builders), so the callback must do nothing but build its string and enqueue.
 No HTTP calls, no writes.
 
-User-facing strings go through `__()` / `esc_html__()` with the text domain
+[o] some User-facing strings go through `__()` / `esc_html__()` with the text domain
 `chalandria-one`. No translations ship in v0.1, but the phpcs ruleset flags bare strings.
 Read: https://developer.wordpress.org/plugins/shortcodes/ and
 https://developer.wordpress.org/apis/security/escaping/

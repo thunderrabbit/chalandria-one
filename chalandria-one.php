@@ -149,7 +149,7 @@ function chalandria_one_render() {
 		) . '</p>';
 	$forment = '<form>' .
 					'<input type="text" placeholder="xxxx-xxxx" />' .
-					'<br><button type="submit">Let\'s Play!</button>'.
+					'<br><button type="submit">' . esc_html__( 'Let\'s Play!', 'chalandria-one' ) . '</button>'.
 				'</form>';
 	$outro = "<hr>";
 	if($logged_in) {
