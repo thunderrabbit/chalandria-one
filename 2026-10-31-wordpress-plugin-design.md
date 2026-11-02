@@ -113,7 +113,7 @@ Build the visible connection screen before making HTTP calls or storing credenti
 - **B. [o] Detect WordPress login.** Use `is_user_logged_in()`. For a visitor who is not logged
   in, show "Log in" linking to `wp_login_url( get_permalink() )`, and
   "or play at games.chatforest.com" linking to `{base}/chalandria/`.
-- **C. Show the server URL.** Read `chalandria_one_base` with the default from step 2 and
+- **C. [o] Show the server URL.** Read `chalandria_one_base` with the default from step 2 and
   show which base URL the plugin will talk to.
 - **D. Link to Chatforest login.** For a logged-in WordPress user, show a **Login to
   Chalandria** link to `{base}/connect/?site={host}&game=chalandria`, opening a new tab
