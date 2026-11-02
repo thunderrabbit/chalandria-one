@@ -123,7 +123,7 @@ Build the visible connection screen before making HTTP calls or storing credenti
 - **F. [o] Show a code field.** Below the link, show "Paste the code here", a text input and a
   Connect button. Step 4 wires up submission; this milestone only renders the form.
 
-Escape everything that goes out: `esc_url()`, `esc_attr()`, `esc_html()`.
+[o] Escape everything that goes out: `esc_url()`, `esc_attr()`, `esc_html()`.
 `the_content` can run more than once per request (SEO plugins building a description,
 excerpts, page builders), so the callback must do nothing but build its string and enqueue.
 No HTTP calls, no writes.
