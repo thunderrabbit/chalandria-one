@@ -150,7 +150,7 @@ function chalandria_one_render() {
 			$gcf_domain
 		) . '</p>';
 	$forment = '<form method="post" action ="' . esc_url(admin_url('admin-post.php')) . '">' .
-					'<input type="hidden" name="action" value="admin_post_chalandria_one_connect_to_games_cf">' .
+					'<input type="hidden" name="action" value="chalandria_one_connect_to_games_cf">' .
 					'<input type="text" placeholder="xxxx-xxxx" />' .
 					'<br><button type="submit">' . esc_html__( 'Let\'s Play!', 'chalandria-one' ) . '</button>'.
 				'</form>';
@@ -175,11 +175,13 @@ function chalandria_one_render() {
 
 add_shortcode('this_is_chalandria', 'chalandria_one_render');
 
+# `admin_post_` is prepended to the value of attribute `value` in `input` name="action"
+# i.e. search `chalandria_one_connect_to_games_cf` above to see why this is called `admin_post_chalandria_one_connect_to_games_cf` here
 add_action(
 	'admin_post_chalandria_one_connect_to_games_cf',
 	'detected_button_click'
 );
 
 function detected_button_click() {
-	wp_die ( "hooray");
+	wp_die ("You've been selected to live on planet <b>Earth</b>.");
 }
