@@ -149,7 +149,7 @@ function chalandria_one_render() {
 			'</a>',
 			$gcf_domain
 		) . '</p>';
-	$forment = '<form>' .
+	$forment = '<form method="post" action ="' . admin_url('admin-post.php') . '">' .
 					'<input type="text" placeholder="xxxx-xxxx" />' .
 					'<br><button type="submit">' . esc_html__( 'Let\'s Play!', 'chalandria-one' ) . '</button>'.
 				'</form>';
