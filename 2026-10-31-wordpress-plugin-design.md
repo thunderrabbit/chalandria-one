@@ -138,6 +138,8 @@ https://developer.wordpress.org/apis/security/escaping/
 WordPress login and the Chatforest connection are separate states. Build the client and
 form handler a little at a time, then add user metadata when there is a key to save.
 
+#### F0. Detect <button> press
+
 #### F. Send any message
 
 Make a server-to-server request to the configured base and observe its response.
