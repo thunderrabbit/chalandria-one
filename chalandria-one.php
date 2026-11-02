@@ -143,7 +143,7 @@ function chalandria_one_render() {
 	$content = '<p>' .
 		sprintf(
 			/* translators: `%1$s`: Opening link tag, `%2$s`: Closing link tag. */
-			esc_html__('%1$sClick here%2$s to go get yo code.', 'chalandria-one'),
+			esc_html__('%1$sClick here%2$s to authenticate on %3$s.', 'chalandria-one'),
 			'<a rel="noopener" href="' . esc_url($gcf_url) . '">',
 			'</a>'
 		) . '</p>';
@@ -162,7 +162,7 @@ function chalandria_one_render() {
 		$login_url =  wp_login_url( get_permalink() );
 		return sprintf(
 			/* translators: `%1$s`: Opening link tag, `%2$s`: Closing link tag. */
-			esc_html__('Yo, you gotta %1$slog in%2$s.', 'chalandria-one'),
+			esc_html__('%1$sLog in%2$s to test Chalandria plugin.', 'chalandria-one'),
 			'<a rel="noopener" href="' . esc_url($login_url) . '">',
 			'</a>'
 		);
