@@ -71,8 +71,8 @@ Suggested layout (a folder in `wp-content/plugins/`, its own git repo):
 chalandria-one/
   chalandria-one.php      plugin header, constants, require the rest, add the hooks
   includes/settings.php
-  includes/client.php     every call to games.chatforest.com
   includes/shortcode.php
+  includes/client.php     every call to games.chatforest.com
   includes/connect.php    the paste-a-code and disconnect form handlers
   includes/rest.php       the proxy route
   assets/chalandria.css
@@ -81,6 +81,8 @@ chalandria-one/
 
 Prefix every function, option, meta key, hook and handle with `chalandria_one_` (WordPress has
 one global namespace), or use a PHP namespace for the functions.
+
+The sections below are the build order. Finish each small milestone before moving on.
 
 ### 1. [o] Plugin header
 
@@ -98,26 +100,99 @@ so Rob can point a test site at gamet. A page under Settings with the Settings A
 `esc_url_raw()`), `add_settings_section()`, `add_settings_field()`, `add_options_page()`, and
 `current_user_can( 'manage_options' )`.
 
-Base URL change cleanup is deferred to step 4, when user metadata exists.
+Base URL change cleanup is deferred to milestone K in step 4, when user metadata exists.
 Read: https://developer.wordpress.org/plugins/settings/
 
-### 3. The client (`client.php`)
+### 3. The shortcode first: A–E (`shortcode.php`)
 
-Small functions around the HTTP API, used by steps 4, 5 and 7:
+Build the visible connection screen before making HTTP calls or storing credentials.
 
-- `chalandria_one_redeem( $code, $host )` → `wp_remote_post()` to `do=redeem`.
-- `chalandria_one_forward( $key, $method, $do, $params )` → `wp_remote_request()` to
-  `chalandria/api.php`, with headers `X-Games-Key` and a `User-Agent` of
-  `WordPress/{version}; {home_url}; chalandria-one-wp/{plugin version}`. `timeout` **60**: a
-  turn can take 30 s and the default is 5. GET parameters go on the URL with `add_query_arg()`,
-  which does **not** encode values: `rawurlencode()` each one first.
-- `chalandria_one_disconnect( $key )`.
+- **A. Show a shortcode.** Register
+  `add_shortcode( 'chalandria_one', 'chalandria_one_render' )` and put `[chalandria_one]`
+  on a WordPress page. The callback **returns** a string; echoing puts it at the top of the page.
+- **B. Detect WordPress login.** Use `is_user_logged_in()`. For a visitor who is not logged
+  in, show "Log in" linking to `wp_login_url( get_permalink() )`, and
+  "or play at games.chatforest.com" linking to `{base}/chalandria/`.
+- **C. Show the server URL.** Read `chalandria_one_base` with the default from step 2 and
+  show which base URL the plugin will talk to.
+- **D. Link to Chatforest login.** For a logged-in WordPress user, show a **Login to
+  Chalandria** link to `{base}/connect/?site={host}&game=chalandria`, opening a new tab
+  (`target="_blank" rel="noopener"`). The player logs in there, allows the connection,
+  and receives a short-lived code.
+- **E. Show a code field.** Below the link, show "Paste the code here", a text input and a
+  Connect button. Step 4 wires up submission; this milestone only renders the form.
 
-Use `wp_remote_retrieve_response_code()` and `wp_remote_retrieve_body()`, check
-`is_wp_error()`, and **never** set `sslverify` to false. Never log or echo a key.
+Escape everything that goes out: `esc_url()`, `esc_attr()`, `esc_html()`.
+`the_content` can run more than once per request (SEO plugins building a description,
+excerpts, page builders), so the callback must do nothing but build its string and enqueue.
+No HTTP calls, no writes.
+
+User-facing strings go through `__()` / `esc_html__()` with the text domain
+`chalandria-one`. No translations ship in v0.1, but the phpcs ruleset flags bare strings.
+Read: https://developer.wordpress.org/plugins/shortcodes/ and
+https://developer.wordpress.org/apis/security/escaping/
+
+### 4. The client and connection: F–M (`client.php`, `connect.php`)
+
+WordPress login and the Chatforest connection are separate states. Build the client and
+form handler a little at a time, then add user metadata when there is a key to save.
+
+#### F. Send any message
+
+Make a server-to-server request to the configured base and observe its response.
+Use the WordPress HTTP API, `wp_remote_retrieve_response_code()` and
+`wp_remote_retrieve_body()`, and check `is_wp_error()`. Never set `sslverify` to false.
+Never log or echo a key.
 Read: https://developer.wordpress.org/plugins/http-api/
 
-### 4. Where the key lives
+#### G. Send the code for verification
+
+Add `chalandria_one_redeem( $code, $host )`, using `wp_remote_post()` to
+`{base}/connect/api.php?do=redeem` with body fields `code` and `site`. The host must match
+what the link in D sent. Submit the form through `admin-post.php`:
+
+- The form posts to `admin_url( 'admin-post.php' )` with a hidden `action` of
+  `chalandria_one_connect`,
+  `wp_nonce_field( 'chalandria_one_connect' )`, and a hidden `back` of the current page's URL
+  with any earlier result stripped: `remove_query_arg( 'chalandria_one', … )`, or the args
+  pile up each time the form is used.
+- `add_action( 'admin_post_chalandria_one_connect', … )` (only logged-in users reach
+  `admin_post_*`). The handler: `check_admin_referer( 'chalandria_one_connect' )`; read the code
+  with `isset( $_POST['code'] )` first, then `sanitize_text_field( wp_unslash( $_POST['code'] ) )`
+  (WordPress adds slashes to `$_POST`); call `chalandria_one_redeem()`; handle the reply as below,
+  then `wp_safe_redirect( $back )` and `exit`. `wp_safe_redirect()` refuses other hosts, so a
+  forged `back` can't send the player off-site.
+
+Read: https://developer.wordpress.org/apis/security/nonces/ and
+https://developer.wordpress.org/reference/hooks/admin_post_action/
+
+#### H. Handle a valid reply
+
+Recognize a 200 response with valid JSON containing the expected key and account details.
+Show a successful connection message without exposing the key. Saving it comes in K.
+
+#### I. Handle a ダメ reply
+
+Handle invalid, expired or already-used codes (400), and throttling (429).
+Say what happened after the redirect: add a query arg with
+`add_query_arg( 'chalandria_one', $result, $back )`, read by the shortcode:
+
+| Redeem answer | `$result` | Shown |
+|---|---|---|
+| Valid 200 | `connected` | "Connected as @handle." |
+| 400 | `bad_code` | "That code didn't work. Codes last 10 minutes and work once." |
+| 429 | `try_later` | "Too many wrong codes. Wait 15 minutes." |
+| anything else, malformed reply, or a `WP_Error` | `unreachable` | "The Games server didn't answer as expected. Try again in a minute." |
+
+The 429 is currently counted per WordPress *server*, not per player, so one player's wrong
+codes can lock out the whole site (mg #800, our side).
+
+#### J. Handle connection failures (suggested)
+
+Handle timeouts, HTTP errors and unexpected or malformed replies with the retry message
+above. Do not treat these as proof that an existing saved key is invalid.
+
+#### K. Save the long string
 
 User meta, `chalandria_one_key`, one per WordPress user:
 `get_user_meta( $user_id, 'chalandria_one_key', true )`, `update_user_meta()`,
@@ -127,7 +202,7 @@ User meta, `chalandria_one_key`, one per WordPress user:
 A key belongs to the base that issued it: a gamet key is a 401 on games. When adding this
 metadata, also handle base URL changes: forget every stored key and handle
 (`add_action( 'update_option_chalandria_one_base', … )` calling the same `delete_metadata()`
-as uninstall, step 9). Players reconnect against the new base. The old keys stay live on the
+as uninstall, step 8). Players reconnect against the new base. The old keys stay live on the
 old base until revoked there on /profile/.
 Read: https://developer.wordpress.org/reference/hooks/update_option_option/
 
@@ -139,81 +214,37 @@ user's key, so deleting a WP user also revokes their key on our side. WordPress 
 meta by itself.
 Read: https://developer.wordpress.org/plugins/users/working-with-user-metadata/
 
-### 5. The shortcode (`shortcode.php`)
+If the user already has a key (a second tab, a double submit), call
+`chalandria_one_disconnect()` on the old one before storing the new one, so it isn't left
+live on our side with nothing holding it. Add that client helper using a POST to
+`{base}/connect/api.php?do=disconnect` with the `X-Games-Key` header.
 
-`add_shortcode( 'chalandria_one', 'chalandria_one_render' )`. The callback
-**returns** a string (echoing puts it at the top of the page). Three states:
+Verify the deferred settings cleanup now: changing the base URL must clear the stored
+keys and handles, so the shortcode shows D and E again.
 
-1. **Not logged in to WordPress** (`is_user_logged_in()`): a sentence with two links,
-   "Log in" to `wp_login_url( get_permalink() )`, and "or play at games.chatforest.com" to
-   `{base}/chalandria/`.
-2. **Logged in, no key:** a **Login to Chalandria** link to the connect page, opening a new
-   tab (`target="_blank" rel="noopener"`), then a small form: "Paste the code here" with a
-   text input and a Connect button (step 7).
-3. **Connected:** the wrapper `div`, Chalandria's markup (the ids above), the `#boot` JSON,
-   a "Playing as @handle · Disconnect" line (a form, step 7), and enqueue the stylesheet
-   and the module (step 6).
+#### L. Detect a valid Chatforest connection
 
-Escape everything that goes out: `esc_url()`, `esc_attr()`, `esc_html()`. Build the boot
-JSON with `wp_json_encode()` using the `JSON_HEX_TAG | JSON_HEX_AMP` flags, so nothing in it
-can close the `<script>`. Its `api` is `rest_url( 'chalandria-one/v1/chalandria' )`, which
-gives the right shape for pretty and plain permalinks alike.
+Add a client helper for `GET {base}/connect/api.php?do=whoami`, sending the saved key in
+`X-Games-Key`. A valid reply confirms the connection; show "Playing as @handle".
+Run this check outside the shortcode render callback, which must remain free of HTTP calls
+and writes. The playable connected screen is added in step 6.
 
-`the_content` can run more than once per request (SEO plugins building a description,
-excerpts, page builders), so the callback must do nothing but build its string and enqueue.
-No HTTP calls, no writes.
+#### M. Detect a rejected Chatforest connection
 
-User-facing strings go through `__()` / `esc_html__()` with the text domain
-`chalandria-one`. No translations ship in v0.1, but the phpcs ruleset flags bare strings.
-Read: https://developer.wordpress.org/plugins/shortcodes/ and
-https://developer.wordpress.org/apis/security/escaping/
+An upstream 401 means the key is invalid or revoked. Clear that user's saved key and handle
+and show the link and code field from D and E again. A timeout or unexpected reply should
+show a retry message and preserve the credentials. Step 5 applies the same rule to game calls.
 
-### 6. Loading our module
+### 5. The proxy route (`rest.php`)
 
-`ui.js` is an ES module, so it needs `<script type="module">`. WordPress 6.5+ has the Script
-Modules API: `wp_register_script_module( 'chalandria-one', "{base}/chalandria/0.26.0/ui.js" )`
-and `wp_enqueue_script_module()` from inside the shortcode callback. Its own `import './state.js'`
-resolves against our URL by itself. The stylesheet: `wp_enqueue_style()` with
-`plugins_url( 'assets/chalandria.css', __FILE__ )` and the plugin's version as `ver`.
-Read: https://make.wordpress.org/core/2024/03/04/script-modules-in-6-5/ and
-https://developer.wordpress.org/reference/functions/wp_enqueue_style/
+Add `chalandria_one_forward( $key, $method, $do, $params )` using
+`wp_remote_request()` to `{base}/chalandria/api.php`, with `X-Games-Key` and a `User-Agent`
+of `WordPress/{version}; {home_url}; chalandria-one-wp/{plugin version}`.
+Set `timeout` to **60**: a turn can take 30 seconds and the default is 5.
+GET parameters go on the URL with `add_query_arg()`; `rawurlencode()` each value first.
+Keep certificate verification enabled and handle `WP_Error` as in step 4.
 
-### 7. Connect and disconnect forms (`connect.php`)
-
-Classic WordPress form handling through `admin-post.php`, which teaches nonces:
-
-- The form posts to `admin_url( 'admin-post.php' )` with a hidden `action` of
-  `chalandria_one_connect` (or `chalandria_one_disconnect`),
-  `wp_nonce_field( 'chalandria_one_connect' )`, and a hidden `back` of the current page's URL
-  with any earlier result stripped: `remove_query_arg( 'chalandria_one', … )`, or the args
-  pile up each time the form is used.
-- `add_action( 'admin_post_chalandria_one_connect', … )` (only logged-in users reach
-  `admin_post_*`). The handler: `check_admin_referer( 'chalandria_one_connect' )`; read the code
-  with `isset( $_POST['code'] )` first, then `sanitize_text_field( wp_unslash( $_POST['code'] ) )`
-  (WordPress adds slashes to `$_POST`); call `chalandria_one_redeem()`; on 200 store the key;
-  then `wp_safe_redirect( $back )` and `exit`. `wp_safe_redirect()` refuses other hosts, so a
-  forged `back` can't send the player off-site.
-- If the user somehow already has a key (a second tab, a double submit), call
-  `chalandria_one_disconnect()` on the old one before storing the new one, so it isn't left
-  live on our side with nothing holding it.
-- Say what happened on the page after the redirect: a query arg added with
-  `add_query_arg( 'chalandria_one', $result, $back )`, read by the shortcode:
-
-  | Redeem answer | `$result` | Shown |
-  |---|---|---|
-  | 200 | `connected` | "Connected as @handle." |
-  | 400 | `bad_code` | "That code didn't work. Codes last 10 minutes and work once." |
-  | 429 | `try_later` | "Too many wrong codes. Wait 15 minutes." |
-  | anything else, or a `WP_Error` | `unreachable` | "games.chatforest.com didn't answer. Try again in a minute." |
-
-  The 429 is currently counted per WordPress *server*, not per player, so one player's wrong
-  codes can lock out the whole site (mg #800, our side).
-- Disconnect: call `chalandria_one_disconnect()` (ignore its answer), then delete the meta.
-
-Read: https://developer.wordpress.org/apis/security/nonces/ and
-https://developer.wordpress.org/reference/hooks/admin_post_action/
-
-### 8. The proxy route (`rest.php`)
+Register the route:
 
 ```
 add_action( 'rest_api_init', … register_rest_route( 'chalandria-one/v1', '/chalandria', [
@@ -261,7 +292,42 @@ Read: https://developer.wordpress.org/rest-api/extending-the-rest-api/adding-cus
 https://developer.wordpress.org/rest-api/using-the-rest-api/authentication/ and
 https://developer.wordpress.org/reference/hooks/rest_post_dispatch/
 
-### 9. Uninstall
+Verify from the shortcode page's browser devtools once the boot JSON is present in step 6:
+`boot = JSON.parse(document.getElementById('boot').textContent)`, then
+`fetch(boot.api + (boot.api.includes('?') ? '&' : '?') + 'do=view&after=-1', {headers: boot.headers}).then(r => r.json())`.
+The same call with `headers: {'X-WP-Nonce': 'nope'}` must return 401, not 403.
+
+### 6. The playable screen, module and CSS
+
+Extend the shortcode's connected state with the wrapper `div`, Chalandria's markup
+(the ids listed above), the `#boot` JSON, and a "Playing as @handle · Disconnect" line
+(the disconnect form is wired up in step 7). Keep B's WordPress login screen and D/E's
+connection screen for users who are not connected.
+
+Build the boot JSON with `wp_json_encode()` using `JSON_HEX_TAG | JSON_HEX_AMP` so nothing
+can close the `<script>`. Its `api` is `rest_url( 'chalandria-one/v1/chalandria' )`, which
+works with pretty and plain permalinks alike. Include the `X-WP-Nonce` header shown above.
+
+`ui.js` is an ES module, so it needs `<script type="module">`. WordPress 6.5+ has the Script
+Modules API: `wp_register_script_module( 'chalandria-one', "{base}/chalandria/0.26.0/ui.js" )`
+and `wp_enqueue_script_module()` from inside the shortcode callback. Its own `import './state.js'`
+resolves against our URL by itself. The stylesheet: `wp_enqueue_style()` with
+`plugins_url( 'assets/chalandria.css', __FILE__ )` and the plugin's version as `ver`.
+Read: https://make.wordpress.org/core/2024/03/04/script-modules-in-6-5/ and
+https://developer.wordpress.org/reference/functions/wp_enqueue_style/
+
+### 7. Disconnect, both ways
+
+Add a Disconnect form to the connected shortcode screen, using the form pattern from G
+with action `chalandria_one_disconnect` and a matching nonce. Its logged-in
+`admin_post_chalandria_one_disconnect` handler checks the nonce, calls
+`chalandria_one_disconnect()` with the current user's key (ignore its answer), deletes
+that user's key and handle, then safely redirects back. The shortcode shows D and E again.
+
+Also test Disconnect on the Games server's /profile/: the next game poll receives 401,
+the proxy clears the metadata, and a page reload shows D and E again.
+
+### 8. Uninstall
 
 `uninstall.php` (guarded by `defined( 'WP_UNINSTALL_PLUGIN' )`) deletes the option and every
 user's `chalandria_one_key` and `chalandria_one_handle`
@@ -269,26 +335,6 @@ user's `chalandria_one_key` and `chalandria_one_handle`
 keys here, since it doesn't call us. Players can do that on
 /profile/, so say so in the readme.
 Read: https://developer.wordpress.org/plugins/plugin-basics/uninstall-methods/
-
-## Order to build it in
-
-Each step can be seen working before the next:
-
-1. Skeleton: the header, activate it, and the shortcode returns "Hello".
-2. Settings page, base URL saved and read back.
-3. The shortcode's three states as plain text.
-4. Connect form + redeem: paste a gamet code and see the key's handle on the page. gamet's
-   Allow page names your WP host, and its `/profile/` then lists the site with your
-   User-Agent.
-5. The proxy: in the browser's devtools on the shortcode page,
-   `boot = JSON.parse(document.getElementById('boot').textContent)`, then
-   `fetch(boot.api + (boot.api.includes('?') ? '&' : '?') + 'do=view&after=-1', {headers: boot.headers}).then(r => r.json())`.
-   The same call with `headers: {'X-WP-Nonce': 'nope'}` must come back 401, not 403.
-6. The markup, the module and the CSS: play.
-7. Disconnect, both ways: the button here, and Disconnect on gamet's /profile/ (the next
-   poll gets 401 and the page says so; a reload shows the Login button).
-8. Change the base URL in Settings: the page shows the Login button again.
-9. Uninstall.
 
 A local WordPress to build on: `npx @wordpress/env start` (Docker), or LocalWP. A site on
 `localhost` connects fine: our side accepts `localhost` as a site name.
