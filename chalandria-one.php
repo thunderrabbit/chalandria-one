@@ -142,11 +142,16 @@ function chalandria_one_render() {
 	$gcf_url = get_option('chalandria_one_base')."/connect/?site=".$wp_host."&game=chalandria";
 	$link_content = "<a rel='noopener' href='".$gcf_url."'>Click here</a>";
 	$content = "<p>".$link_content." to go get yo code.</p>";
+	$forment = '<form>' .
+					'<input type="text" placeholder="xxxx-xxxx" />' .
+					'<br><button type="submit">Let\'s Play!</button>'.
+				'</form>';
 	$outro = "<hr>";
 	if($logged_in) {
 		return
 			$intro.
 			$content.
+			$forment.
 			$outro;
 	} else {
 		return "Yo, you gotta <a href='".
