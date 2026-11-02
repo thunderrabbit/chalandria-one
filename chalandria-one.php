@@ -137,6 +137,7 @@ add_action('admin_init', 'chalandria_one_register_settings');
 function chalandria_one_render() {
 	$logged_in = is_user_logged_in();
 	$wp_host = wp_parse_url(home_url(),PHP_URL_HOST);
+	$gcf_domain = wp_parse_url(get_option('chalandria_one_base'), PHP_URL_HOST);
 
 	$intro = "<hr>";
 	$gcf_url = get_option('chalandria_one_base')."/connect/?site=".$wp_host."&game=chalandria";
@@ -145,7 +146,8 @@ function chalandria_one_render() {
 			/* translators: `%1$s`: Opening link tag, `%2$s`: Closing link tag. */
 			esc_html__('%1$sClick here%2$s to authenticate on %3$s.', 'chalandria-one'),
 			'<a rel="noopener" href="' . esc_url($gcf_url) . '">',
-			'</a>'
+			'</a>',
+			$gcf_domain
 		) . '</p>';
 	$forment = '<form>' .
 					'<input type="text" placeholder="xxxx-xxxx" />' .
