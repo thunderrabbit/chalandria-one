@@ -110,7 +110,7 @@ Build the visible connection screen before making HTTP calls or storing credenti
 - **A. [o] Show a shortcode.** Register
   `add_shortcode( 'chalandria_one', 'chalandria_one_render' )` and put `[chalandria_one]`
   on a WordPress page. The callback **returns** a string; echoing puts it at the top of the page.
-- **B. Detect WordPress login.** Use `is_user_logged_in()`. For a visitor who is not logged
+- **B. [o] Detect WordPress login.** Use `is_user_logged_in()`. For a visitor who is not logged
   in, show "Log in" linking to `wp_login_url( get_permalink() )`, and
   "or play at games.chatforest.com" linking to `{base}/chalandria/`.
 - **C. Show the server URL.** Read `chalandria_one_base` with the default from step 2 and

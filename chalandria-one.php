@@ -7,7 +7,7 @@
  * Author URI:      https://www.robnugen.com/
  * Text Domain:     chalandria-one
  * Domain Path:     /languages
- * Version:         0.2.0
+ * Version:         0.2.2
  *
  * @package         Chalandria_One
  */
@@ -135,7 +135,15 @@ function chatforest_games_settings_page() {
 add_action('admin_init', 'chalandria_one_register_settings');
 
 function chalandria_one_render() {
-	return "<hr><p>yo this is yo code</p><hr>";
+	$logged_in = is_user_logged_in();
+
+	if($logged_in) {
+		return "<hr><p>yo this is yo code</p><hr>";
+	} else {
+		return "Yo, you gotta <a href='".
+		   wp_login_url( get_permalink() ).
+		   "'>log in</a>.";
+	}
 }
 
 
