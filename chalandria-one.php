@@ -140,8 +140,13 @@ function chalandria_one_render() {
 
 	$intro = "<hr>";
 	$gcf_url = get_option('chalandria_one_base')."/connect/?site=".$wp_host."&game=chalandria";
-	$link_content = "<a rel='noopener' href='".esc_url($gcf_url)."'>Click here</a>";
-	$content = "<p>".$link_content." to go get yo code.</p>";
+	$content = '<p>' .
+		sprintf(
+			/* translators: `%1$s`: Opening link tag, `%2$s`: Closing link tag. */
+			esc_html__('%1$sClick here%2$s to go get yo code.', 'chalandria-one'),
+			'<a rel="noopener" href="' . esc_url($gcf_url) . '">',
+			'</a>'
+		) . '</p>';
 	$forment = '<form>' .
 					'<input type="text" placeholder="xxxx-xxxx" />' .
 					'<br><button type="submit">Let\'s Play!</button>'.
@@ -154,9 +159,13 @@ function chalandria_one_render() {
 			$forment.
 			$outro;
 	} else {
-		return "Yo, you gotta <a href='".
-		   esc_url(wp_login_url( get_permalink() )).
-		   "'>log in</a>.";
+		$login_url =  wp_login_url( get_permalink() );
+		return sprintf(
+			/* translators: `%1$s`: Opening link tag, `%2$s`: Closing link tag. */
+			esc_html__('Yo, you gotta %1$slog in%2$s.', 'chalandria-one'),
+			'<a rel="noopener" href="' . esc_url($login_url) . '">',
+			'</a>'
+		);
 	}
 }
 
