@@ -90,7 +90,7 @@ A comment block at the top of `chalandria-one.php` makes it a plugin. Set `Requi
 Read: https://developer.wordpress.org/plugins/plugin-basics/header-requirements/ and
 https://developer.wordpress.org/plugins/hooks/
 
-### 2. Settings
+### 2. [o] Settings
 
 One option, `chalandria_one_base`, the base URL, defaulting to `https://games.chatforest.com`,
 so Rob can point a test site at gamet. A page under Settings with the Settings API:
@@ -98,12 +98,8 @@ so Rob can point a test site at gamet. A page under Settings with the Settings A
 `esc_url_raw()`), `add_settings_section()`, `add_settings_field()`, `add_options_page()`, and
 `current_user_can( 'manage_options' )`.
 
-A key belongs to the base that issued it: a gamet key is a 401 on games. So when the base
-changes, forget every stored key and handle (`add_action( 'update_option_chalandria_one_base', … )`
-calling the same `delete_metadata()` as uninstall, step 9). Players reconnect against the new
-base. The old keys stay live on the old base until revoked there on /profile/.
-Read: https://developer.wordpress.org/plugins/settings/ and
-https://developer.wordpress.org/reference/hooks/update_option_option/
+Base URL change cleanup is deferred to step 4, when user metadata exists.
+Read: https://developer.wordpress.org/plugins/settings/
 
 ### 3. The client (`client.php`)
 
@@ -127,6 +123,13 @@ User meta, `chalandria_one_key`, one per WordPress user:
 `get_user_meta( $user_id, 'chalandria_one_key', true )`, `update_user_meta()`,
 `delete_user_meta()`. Optionally keep the redeem answer's `username` in
 `chalandria_one_handle`, to show "Playing as @rob".
+
+A key belongs to the base that issued it: a gamet key is a 401 on games. When adding this
+metadata, also handle base URL changes: forget every stored key and handle
+(`add_action( 'update_option_chalandria_one_base', … )` calling the same `delete_metadata()`
+as uninstall, step 9). Players reconnect against the new base. The old keys stay live on the
+old base until revoked there on /profile/.
+Read: https://developer.wordpress.org/reference/hooks/update_option_option/
 
 Don't `register_meta()` these keys. Registering with `show_in_rest` is the one way user meta
 leaks out through the core REST API (`/wp/v2/users/me`); unregistered meta never does.
