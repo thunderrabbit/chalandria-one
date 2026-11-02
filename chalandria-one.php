@@ -7,7 +7,7 @@
  * Author URI:      https://www.robnugen.com/
  * Text Domain:     chalandria-one
  * Domain Path:     /languages
- * Version:         0.2.4
+ * Version:         0.3.0
  *
  * @package         Chalandria_One
  */
