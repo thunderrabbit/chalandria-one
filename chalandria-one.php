@@ -133,3 +133,10 @@ function chatforest_games_settings_page() {
 
 
 add_action('admin_init', 'chalandria_one_register_settings');
+
+function chalandria_one_render() {
+	return "<hr><p>yo this is yo code</p><hr>";
+}
+
+
+add_shortcode('this_is_chalandria', 'chalandria_one_render');

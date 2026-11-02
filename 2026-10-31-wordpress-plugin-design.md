@@ -107,7 +107,7 @@ Read: https://developer.wordpress.org/plugins/settings/
 
 Build the visible connection screen before making HTTP calls or storing credentials.
 
-- **A. Show a shortcode.** Register
+- **A. [o] Show a shortcode.** Register
   `add_shortcode( 'chalandria_one', 'chalandria_one_render' )` and put `[chalandria_one]`
   on a WordPress page. The callback **returns** a string; echoing puts it at the top of the page.
 - **B. Detect WordPress login.** Use `is_user_logged_in()`. For a visitor who is not logged
