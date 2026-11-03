@@ -220,5 +220,10 @@ function detected_button_click() {
 		wp_die('The games server returned invalid JSON.');
 	}
 
-	wp_die("<pre>".print_r($response_data,true)."</pre>");
+	$games_key = $response_data['key'];
+	$games_username = $response_data['username'];
+	$games_displayname = $response_data['display_name'];
+
+	wp_die("Welcome $games_displayname");
+
 }
