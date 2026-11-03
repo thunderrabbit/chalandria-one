@@ -183,5 +183,8 @@ add_action(
 );
 
 function detected_button_click() {
-	wp_die ("You've been selected to live on planet <b>Earth</b>.");
+	wp_die(print_r( wp_remote_get(get_option(
+		'chalandria_one_base',
+		''		// default URL is registered by `register_setting()`
+	))),true);
 }
