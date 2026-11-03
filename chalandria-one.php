@@ -151,7 +151,7 @@ function chalandria_one_render() {
 		) . '</p>';
 	$forment = '<form method="post" action ="' . esc_url(admin_url('admin-post.php')) . '">' .
 					'<input type="hidden" name="action" value="chalandria_one_connect_to_games_cf">' .
-					'<input type="text" placeholder="xxxx-xxxx" />' .
+					'<input type="text" name="code" placeholder="xxxx-xxxx" />' .
 					'<br><button type="submit">' . esc_html__( 'Let\'s Play!', 'chalandria-one' ) . '</button>'.
 				'</form>';
 	$outro = "<hr>";
