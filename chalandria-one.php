@@ -189,7 +189,15 @@ function detected_button_click() {
 	) . "/connect/api.php?do=redeem";
 	wp_die(
 		print_r(
-			wp_remote_post($games_code_redeem_url)
+			// wp_remote_post(
+			// 	$games_code_redeem_url,
+			// 		array(
+			// 			'body' => array(
+			// 				'code' => "kjkjkj",
+			// 				'site' => 'kjkjkj',
+			// 			),
+			// 		)
+			// 	)
 		),true
 	);
 }
