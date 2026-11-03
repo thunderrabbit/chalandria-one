@@ -210,5 +210,10 @@ function detected_button_click() {
 
 	$response_data = json_decode($response_body, true);
 
+	if (JSON_ERROR_NONE !== json_last_error()) {
+		// server is borked
+		wp_die('The games server returned invalid JSON.');
+	}
+
 	wp_die("<pre>".print_r($response_data,true)."</pre>");
 }
