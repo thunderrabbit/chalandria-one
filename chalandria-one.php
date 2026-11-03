@@ -198,5 +198,10 @@ function detected_button_click() {
 						),
 					)
 				);
+	if (is_wp_error($redeem_code_response)) {
+		// URL is wrong or unavailable
+		wp_die('Error connecting to ' . esc_url($games_url));
+	}
+
 	wp_die("<pre>".print_r($redeem_code_response,true)."</pre>");
 }
