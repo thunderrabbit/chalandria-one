@@ -183,10 +183,11 @@ add_action(
 );
 
 function detected_button_click() {
-	$games_code_redeem_url = get_option(
+	$games_url = get_option(
 		'chalandria_one_base',
 		''		// default URL is registered by `register_setting()`
-	) . "/connect/api.php?do=redeem";
+	);
+	$games_code_redeem_url = esc_url($games_url . "/connect/api.php?do=redeem");
 	$redeem_code_response =
 			wp_remote_post(
 				$games_code_redeem_url,
