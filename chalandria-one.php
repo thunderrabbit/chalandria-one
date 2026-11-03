@@ -206,5 +206,7 @@ function detected_button_click() {
 		wp_die('Error connecting to ' . esc_url($games_url));
 	}
 
-	wp_die("<pre>".print_r($redeem_code_response,true)."</pre>");
+	$response_body = wp_remote_retrieve_body($redeem_code_response);
+
+	wp_die("<pre>".print_r($response_body,true)."</pre>");
 }
