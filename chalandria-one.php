@@ -151,7 +151,7 @@ function chalandria_one_render() {
 		) . '</p>';
 	$forment = '<form method="post" action ="' . esc_url(admin_url('admin-post.php')) . '">' .
 					'<input type="hidden" name="action" value="chalandria_one_connect_to_games_cf">' .
-					'<input type="text" name="code" placeholder="xxxx-xxxx" />' .
+					'<input required type="text" name="code" placeholder="xxxx-xxxx" />' .
 					'<br><button type="submit">' . esc_html__( 'Let\'s Play!', 'chalandria-one' ) . '</button>'.
 				'</form>';
 	$outro = "<hr>";
@@ -183,12 +183,15 @@ add_action(
 );
 
 function detected_button_click() {
-	$games_code_redeem_url = get_option(
+	if(empty($_POST['code'])) {
+		wp_die('You need to post a code');
+	}
+	$games_url = get_option(
 		'chalandria_one_base',
 		''		// default URL is registered by `register_setting()`
-	) . "/connect/api.php?do=redeem";
-	wp_die(
-		print_r(
+	);
+	$games_code_redeem_url = esc_url($games_url . "/connect/api.php?do=redeem");
+	$redeem_code_response =
 			wp_remote_post(
 				$games_code_redeem_url,
 					array(
@@ -197,7 +200,30 @@ function detected_button_click() {
 							'site' => wp_parse_url( home_url(), PHP_URL_HOST ),
 						),
 					)
-				)
-		),true
-	);
+				);
+	if (200 !== wp_remote_retrieve_response_code($redeem_code_response)) {
+		// code is probably invalid
+		wp_die('Check the code and try again.');
+	}
+
+	if (is_wp_error($redeem_code_response)) {
+		// URL is wrong or unavailable
+		wp_die('Error connecting to ' . esc_url($games_url));
+	}
+
+	$response_body = wp_remote_retrieve_body($redeem_code_response);
+
+	$response_data = json_decode($response_body, true);
+
+	if (JSON_ERROR_NONE !== json_last_error()) {
+		// server is borked
+		wp_die('The games server returned invalid JSON.');
+	}
+
+	$games_key = $response_data['key'];
+	$games_username = $response_data['username'];
+	$games_displayname = $response_data['display_name'];
+
+	wp_die("Welcome $games_displayname");
+
 }
