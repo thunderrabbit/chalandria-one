@@ -188,7 +188,7 @@ function detected_button_click() {
 		''		// default URL is registered by `register_setting()`
 	) . "/connect/api.php?do=redeem";
 	wp_die(
-		print_r(
+		print_r($_POST['code']
 			// wp_remote_post(
 			// 	$games_code_redeem_url,
 			// 		array(
