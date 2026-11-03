@@ -183,8 +183,13 @@ add_action(
 );
 
 function detected_button_click() {
-	wp_die(print_r( wp_remote_get(get_option(
+	$games_code_redeem_url = get_option(
 		'chalandria_one_base',
 		''		// default URL is registered by `register_setting()`
-	))),true);
+	) . "/connect/api.php?do=redeem";
+	wp_die(
+		print_r(
+			wp_remote_get($games_code_redeem_url)
+		),true
+	);
 }
