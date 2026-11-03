@@ -187,8 +187,7 @@ function detected_button_click() {
 		'chalandria_one_base',
 		''		// default URL is registered by `register_setting()`
 	) . "/connect/api.php?do=redeem";
-	wp_die(
-		print_r(
+	$redeem_code_response =
 			wp_remote_post(
 				$games_code_redeem_url,
 					array(
@@ -197,7 +196,6 @@ function detected_button_click() {
 							'site' => wp_parse_url( home_url(), PHP_URL_HOST ),
 						),
 					)
-				)
-		),true
-	);
+				);
+	wp_die("<pre>".print_r($redeem_code_response,true)."</pre>");
 }
