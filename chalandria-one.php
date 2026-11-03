@@ -183,6 +183,9 @@ add_action(
 );
 
 function detected_button_click() {
+	if(empty($_POST['code'])) {
+		wp_die('You need to post a code');
+	}
 	$games_url = get_option(
 		'chalandria_one_base',
 		''		// default URL is registered by `register_setting()`
