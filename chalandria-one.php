@@ -188,16 +188,16 @@ function detected_button_click() {
 		''		// default URL is registered by `register_setting()`
 	) . "/connect/api.php?do=redeem";
 	wp_die(
-		print_r($_POST['code']
-			// wp_remote_post(
-			// 	$games_code_redeem_url,
-			// 		array(
-			// 			'body' => array(
-			// 				'code' => "kjkjkj",
-			// 				'site' => 'kjkjkj',
-			// 			),
-			// 		)
-			// 	)
+		print_r(
+			wp_remote_post(
+				$games_code_redeem_url,
+					array(
+						'body' => array(
+							'code' => sanitize_text_field( wp_unslash($_POST['code'])),
+							'site' => wp_parse_url( home_url(), PHP_URL_HOST ),
+						),
+					)
+				)
 		),true
 	);
 }
