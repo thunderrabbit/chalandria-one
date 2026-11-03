@@ -201,6 +201,11 @@ function detected_button_click() {
 						),
 					)
 				);
+	if (200 !== wp_remote_retrieve_response_code($redeem_code_response)) {
+		// code is probably invalid
+		wp_die('Check the code and try again.');
+	}
+
 	if (is_wp_error($redeem_code_response)) {
 		// URL is wrong or unavailable
 		wp_die('Error connecting to ' . esc_url($games_url));
