@@ -208,5 +208,7 @@ function detected_button_click() {
 
 	$response_body = wp_remote_retrieve_body($redeem_code_response);
 
-	wp_die("<pre>".print_r($response_body,true)."</pre>");
+	$response_data = json_decode($response_body, true);
+
+	wp_die("<pre>".print_r($response_data,true)."</pre>");
 }
